@@ -2,14 +2,21 @@ import re
 from singer_sdk import typing as th
 from pendulum import parse
 from datetime import datetime
+import isodate
+from datetime import timedelta
+import json
+from lxml import etree
+import xmltodict
 
 def get_json_path(path):
+    if not "*" in path:
+        path = f"{path}.*"
     path_parts = path.split(".")
-    if len(path_parts) == 1:
-        return f"$.{path_parts[0]}[*]"
     if len(path_parts) > 1:
         path = path.replace(".*", "[*]")
         return f"$.{path}"
+    else:
+        return path
 
 def snakecase(string: str) -> str:
     """Convert string into snake case.
@@ -72,3 +79,24 @@ def get_jsonschema_type(obj):
             return th.ObjectType(*obj_props)
 
         raise ValueError(f"Unmappable data type '{dtype}'.")
+
+def iso_duration_to_timedelta(duration_str: str) -> timedelta:
+    duration = isodate.parse_duration(duration_str)
+    # `parse_duration` returns either timedelta or Duration (with months/years)
+    if isinstance(duration, timedelta):
+        return duration
+    # Approximate months and years
+    days = duration.years * 365 + duration.months * 30
+    return timedelta(days=days, seconds=duration.tdelta.seconds, microseconds=duration.tdelta.microseconds)
+
+def xml_to_dict(response):
+    try:
+        #clean invalid xml characters
+        my_parser = etree.XMLParser(recover=True)
+        xml = etree.fromstring(response.content, parser=my_parser)
+        cleaned_xml_string = etree.tostring(xml)
+        #parse xml to dict
+        data = json.loads(json.dumps(xmltodict.parse(cleaned_xml_string)))
+    except:
+        data = json.loads(json.dumps(xmltodict.parse(response.content.decode("utf-8-sig").encode("utf-8"))))
+    return data
