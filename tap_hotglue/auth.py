@@ -5,10 +5,10 @@ from datetime import datetime
 from typing import Any, Dict, Optional
 
 import requests
-from singer_sdk.authenticators import APIAuthenticatorBase
-from singer_sdk.streams import Stream as RESTStreamBase
-from singer_sdk.exceptions import FatalAPIError, RetriableAPIError
-from singer_sdk.helpers.jsonpath import extract_jsonpath
+from hotglue_singer_sdk.authenticators import APIAuthenticatorBase
+from hotglue_singer_sdk.streams import Stream as RESTStreamBase
+from hotglue_singer_sdk.exceptions import FatalAPIError, RetriableAPIError
+from hotglue_singer_sdk.helpers.jsonpath import extract_jsonpath
 import backoff
 
 
@@ -146,10 +146,11 @@ class OAuth2Authenticator(APIAuthenticatorBase):
             )
         token_json = token_response.json()
         #Log the refresh_token
-        self.logger.info(f"Latest refresh token: {token_json['refresh_token']}")
+        self.logger.info(f"Latest refresh token: {token_json.get('refresh_token')}")
         self.access_token = token_json["access_token"]
         self._tap._config["access_token"] = token_json["access_token"]
-        self._tap._config["refresh_token"] = token_json["refresh_token"]
+        if token_json.get("refresh_token"):
+            self._tap._config["refresh_token"] = token_json["refresh_token"]
         now = round(datetime.utcnow().timestamp())
         self._tap._config["expires_in"] = int(token_json["expires_in"]) + now
 

@@ -6,22 +6,22 @@ from typing import Any, Dict, Optional, Union, List, Iterable
 
 from memoization import cached
 from cached_property import cached_property
-from singer_sdk.helpers.jsonpath import extract_jsonpath
-from singer_sdk.streams import RESTStream
-from singer_sdk.authenticators import APIKeyAuthenticator, BasicAuthenticator, BearerTokenAuthenticator
+from hotglue_singer_sdk.helpers.jsonpath import extract_jsonpath
+from hotglue_singer_sdk.streams import RESTStream
+from hotglue_singer_sdk.authenticators import APIKeyAuthenticator, BasicAuthenticator, BearerTokenAuthenticator
 import re
-from singer_sdk import typing as th
-from urllib.parse import urlparse, parse_qs
-from singer_sdk.exceptions import FatalAPIError, RetriableAPIError
+from hotglue_singer_sdk import typing as th
+from urllib.parse import urlparse, parse_qs, unquote
+from hotglue_singer_sdk.exceptions import FatalAPIError, RetriableAPIError
 from pathlib import Path
 from typing import Any, Dict, Optional, Union, List, Iterable, Callable, cast
 import backoff
 from tap_hotglue.exceptions import TooManyRequestsError
 from pendulum import parse
-from datetime import datetime
+from datetime import datetime, timezone
 from tap_hotglue.utils import get_json_path, xml_to_dict
 from tap_hotglue.auth import BearerTokenRequestAuthenticator, OAuth2Authenticator
-from singer_sdk.helpers._typing import is_datetime_type
+from hotglue_singer_sdk.helpers._typing import is_datetime_type
 import json
 import ast
 import copy
@@ -29,7 +29,6 @@ import cloudscraper
 from jinja2 import Template
 from tap_hotglue.airbyte_helpers import now_utc, format_datetime
 from tap_hotglue.utils import iso_duration_to_timedelta
-from datetime import timezone
 
 
 class HotglueStream(RESTStream):
@@ -90,6 +89,16 @@ class HotglueStream(RESTStream):
                     type = "bearer"
                     # TODO: not sure if this assumption is true for all cases
                     self.authentication["value"] = self.authentication["api_token"]
+                case "OAuthAuthenticator":
+                    type = "oauth"
+                    self.authentication["token_url"] = self.get_field_value(self.authentication.get("token_refresh_endpoint"))
+                    self.authentication["request_payload"] = self.authentication.get("refresh_request_body") or {
+                        "client_id": '{{ config["client_id"] }}',
+                        "client_secret": '{{ config["client_secret"] }}',
+                        "redirect_uri": '{{ config["redirect_uri"] }}',
+                        "refresh_token": '{{ config["refresh_token"] }}',
+                        "grant_type": "refresh_token",
+                    }
                 case "SessionTokenAuthenticator":
                     type = "bearer"
                     self.authentication["token_type"] = "request"
@@ -98,11 +107,19 @@ class HotglueStream(RESTStream):
 
         if type == "api":
             # get api key field used in config
+            api_key_value = self.get_field_value(self.authentication["value"])
+            location = self.authentication.get("location", "header")
+
+            # If API key is being added to URL params, decode it first to prevent double encoding
+            # The requests library will encode it automatically when building the URL
+            if location in ["params", "request_parameter", "query"]:
+                api_key_value = unquote(api_key_value)
+
             return APIKeyAuthenticator.create_for_stream(
                 self,
                 key=self.authentication.get("key", "x-api-key"),
-                value=self.get_field_value(self.authentication["value"]),
-                location=self.authentication.get("location", "header")
+                value=api_key_value,
+                location=location
             )
         elif type == "basic":
             return BasicAuthenticator.create_for_stream(
@@ -196,6 +213,12 @@ class HotglueStream(RESTStream):
                 return ast.literal_eval(obj)   
         return obj
 
+    def process_replication_key_value(self, value):
+        state_fmt = self.incremental_sync.get("state_datetime_format")
+        if state_fmt and not state_fmt.startswith(("%Y-%m-%d", "%Y/%m/%d")):
+            return datetime.strptime(value, self.incremental_sync.get("state_datetime_format")).strftime("%Y-%m-%dT%H:%M:%SZ")
+        return value
+
     def _process_datetime_fields(self, data, path=""):
         """Recursively process datetime fields in the data structure."""
         if not isinstance(data, (dict, list)):
@@ -223,6 +246,8 @@ class HotglueStream(RESTStream):
                     result[key] = dt_field.isoformat()
                 except (ValueError, TypeError):
                     result[key] = value
+            elif key == self.replication_key:
+                result[key] = self.process_replication_key_value(value)
             elif isinstance(value, (dict, list)):
                 result[key] = self._process_datetime_fields(value, current_path)
             else:
@@ -234,7 +259,7 @@ class HotglueStream(RESTStream):
         # ---------- 1. Support direct Airbyte-style variables ----------
         # Handle Airbyte tap format: {{ config['field_name'] }}
         if hasattr(self, '_tap') and self._tap.airbyte_tap:
-            match = re.search(r"\{\{\s*config\['([^']+)'\]\s*\}\}", path)
+            match = re.search(r"\{\{\s*config\[['\"]([^'\"]+)['\"]\]\s*\}\}", path)
             if match:
                 field = match.group(1).strip()
                 value = self.config.get(field)
@@ -344,6 +369,8 @@ class HotglueStream(RESTStream):
             # field name for pagination can come from page_token_option or page_size_option
             if page_token_option:= stream_pagination.get("page_token_option"):
                 processed_pagination["page_name"] = page_token_option.get("field_name")
+                if inject_into := page_token_option.get('inject_into'):
+                    processed_pagination["location"] = inject_into
             if page_size_options := stream_pagination.get("page_size_option", {}):
                 processed_pagination["page_size_parameter"] = page_size_options.get("field_name")
 
@@ -375,6 +402,8 @@ class HotglueStream(RESTStream):
     ) -> Optional[Any]:
         """Return a token for identifying next page or None if no more pages."""
         pagination_type = self.get_pagination_type()
+        next_page_token = None
+
         if not pagination_type:
             self.logger.info(f"No pagination method defined for stream {self.name}")
             return
@@ -418,16 +447,6 @@ class HotglueStream(RESTStream):
             self.next_page_token = next_page_token
         return next_page_token
 
-
-    def get_starting_time(self, context):
-        if self.start_date:
-            return self.start_date
-        start_date = self.config.get("start_date")
-        if start_date:
-            start_date = parse(self.config.get("start_date"))
-        rep_key = self.get_starting_timestamp(context)
-        return rep_key or start_date
-
     def get_incremental_sync_params(self, incremental_data, context):
         if not incremental_data.get("field_name"):
             self.logger.warning(f"Incremental sync filter field name was not provided for stream {self.name}, running a fullsync.")
@@ -437,7 +456,8 @@ class HotglueStream(RESTStream):
             datetime_format = "%Y-%m-%dT%H:%M:%SZ"
             self.logger.warning(f"Datetime format for incremental_sync not provided for stream {self.name}, using '{datetime_format}' as default")
         # get start_date
-        start_date = self.get_starting_time(context)
+        is_inclusive = self.incremental_sync.get("is_inclusive", False)
+        start_date = self.get_starting_time(context, is_inclusive)
         if datetime_format == "timestamp":
             start_date = int(start_date.timestamp())
         elif datetime_format == "timestamp_ms":
@@ -531,13 +551,11 @@ class HotglueStream(RESTStream):
 
     def post_process(self, row: dict, context: Optional[dict]) -> dict:
         """Process datetime fields in the data structure, including nested ones."""
-        if (
-            self.incremental_sync
-            and self.incremental_sync.get("datetime_format") in ["timestamp", "timestamp_ms"]
+        if self.incremental_sync and (
+            self.incremental_sync.get("datetime_format") in ["timestamp", "timestamp_ms"]
+            or self.incremental_sync.get("state_datetime_format")
         ):
             return self._process_datetime_fields(row)
-        
-
         # Add time_extracted field if specified as rep key
         if self.incremental_sync and self.incremental_sync.get("replication_key") == "time_extracted":
             row["time_extracted"] = datetime.now().isoformat()
@@ -693,4 +711,4 @@ class HotglueStream(RESTStream):
                 record = {field["@name"]: field["@value"] for field in record}
                 yield record
         else:
-            return super().parse_response(response)
+            yield from super().parse_response(response)
