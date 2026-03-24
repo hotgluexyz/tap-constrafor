@@ -469,6 +469,10 @@ class HotglueStream(RESTStream):
         if self.incremental_sync.get("embedded"):
             self.replication_key_value = start_date
 
+        value_template = incremental_data.get("value_template")
+        if value_template:
+            param_value = value_template.replace("{replication_key_value}", str(start_date))
+            return {incremental_data["field_name"]: param_value}
         return {incremental_data["field_name"]: start_date}
 
     def get_url_params(
@@ -555,10 +559,24 @@ class HotglueStream(RESTStream):
             self.incremental_sync.get("datetime_format") in ["timestamp", "timestamp_ms"]
             or self.incremental_sync.get("state_datetime_format")
         ):
-            return self._process_datetime_fields(row)
+            row = self._process_datetime_fields(row)
+
         # Add time_extracted field if specified as rep key
         if self.incremental_sync and self.incremental_sync.get("replication_key") == "time_extracted":
             row["time_extracted"] = datetime.now().isoformat()
+
+        # Synthetic replication key: coalesce from replication_key_sources (e.g. update or create date)
+        replication_key_sources = self.incremental_sync and self.incremental_sync.get("replication_key_sources")
+        if replication_key_sources:
+            rep_key = self.incremental_sync.get("replication_key")
+            if rep_key:
+                for src in replication_key_sources:
+                    val = row.get(src)
+                    if val is not None and val != "":
+                        row[rep_key] = val
+                        break
+                else:
+                    row[rep_key] = None
         return row
 
     def get_child_context(self, record: dict, context: Optional[dict]) -> dict:
