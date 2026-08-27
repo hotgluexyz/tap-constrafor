@@ -5,6 +5,7 @@ on:
     paths:
       - '**.py'
       - 'ruff.toml'
+      - 'ty.toml'
       - 'tox.ini'
       - 'pyproject.toml'
 
