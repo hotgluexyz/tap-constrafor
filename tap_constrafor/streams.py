@@ -89,7 +89,7 @@ DETAIL_INSURANCE_REQUEST = th.ObjectType(
     th.Property("documents", th.ArrayType(DOCUMENT)),
 )
 
-LIMIT_VALUE = th.CustomType({"type": ["number", "string", "null"]})
+LIMIT_VALUE = th.CustomType({"type": ["number", "string"]})
 
 LIMITS = th.ObjectType(
     th.Property("aggregate_limit", LIMIT_VALUE),
@@ -158,9 +158,6 @@ class InsurancePolicyDetailStream(ConstraforStream):
         th.Property("updated_at", th.DateTimeType),
         th.Property("insurance_carrier_naic", th.StringType),
         th.Property("limits", LIMITS),
-        th.Property(
-            "additional_insureds",
-            th.CustomType({"type": ["array", "object", "null"]}),
-        ),
+        th.Property("additional_insureds",th.BooleanType),
         th.Property("comment", th.StringType),
     ).to_dict()
