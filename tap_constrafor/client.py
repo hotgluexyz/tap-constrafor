@@ -8,6 +8,8 @@ import requests
 from hotglue_singer_sdk.authenticators import APIKeyAuthenticator
 from hotglue_singer_sdk.streams import RESTStream
 from typing_extensions import override
+import singer
+from singer import StateMessage
 
 BASE_URL = "https://api.constrafor.com/public_api/v1"
 INCREMENTAL_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
@@ -43,3 +45,13 @@ class ConstraforStream(RESTStream):
         previous_token: Any | None,
     ) -> Any | None:
         return None
+
+    def _write_state_message(self) -> None:
+        """Write out a STATE message with the latest state."""
+        tap_state = self.tap_state
+
+        if tap_state and tap_state.get("bookmarks"):
+            for stream_name in tap_state.get("bookmarks").keys():
+                    tap_state["bookmarks"][stream_name]["partitions"] = []
+        
+        singer.write_message(StateMessage(value=tap_state))
