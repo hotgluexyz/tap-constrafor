@@ -49,9 +49,10 @@ class ConstraforStream(RESTStream):
     def _write_state_message(self) -> None:
         """Write out a STATE message with the latest state."""
         tap_state = self.tap_state
+        bookmarks = tap_state.get("bookmarks")
 
-        if tap_state and tap_state.get("bookmarks"):
-            for stream_name in tap_state.get("bookmarks").keys():
-                    tap_state["bookmarks"][stream_name]["partitions"] = []
+        if tap_state and bookmarks:
+            for stream_name in bookmarks.keys():
+                bookmarks[stream_name]["partitions"] = []
         
         singer.write_message(StateMessage(value=tap_state))
