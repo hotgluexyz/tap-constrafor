@@ -19,6 +19,7 @@ tap-constrafor --about
 | Setting | Required | Description |
 |---------|----------|-------------|
 | `api_key` | Yes | Constrafor API key (sent as `Authorization: Api-Key …`) |
+| `is_sandbox` | No | Use Constrafor sandbox API (`api-sandbox.constrafor.com`) |
 | `start_date` | No | Earliest record date for incremental sync |
 
 ## Usage
