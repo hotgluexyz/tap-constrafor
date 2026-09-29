@@ -23,6 +23,11 @@ class TapConstrafor(Tap):
             description="Constrafor API key (sent as Authorization: Api-Key …)",
         ),
         th.Property(
+            "base_url",
+            th.StringType,
+            description="Constrafor API host (defaults to https://api.constrafor.com)",
+        ),
+        th.Property(
             "start_date",
             th.DateTimeType,
             description="Earliest record date for incremental sync",

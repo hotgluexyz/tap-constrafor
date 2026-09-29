@@ -11,7 +11,7 @@ from typing_extensions import override
 import singer
 from singer import StateMessage
 
-BASE_URL = "https://api.constrafor.com/public_api/v1"
+BASE_URL = "https://api.constrafor.com"
 INCREMENTAL_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 
 
@@ -21,7 +21,8 @@ class ConstraforStream(RESTStream):
     @override
     @property
     def url_base(self) -> str:
-        return BASE_URL
+        api_root = (self.config.get("base_url") or BASE_URL).rstrip("/")
+        return f"{api_root}/public_api/v1"
 
     @override
     @property
