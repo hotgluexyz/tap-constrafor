@@ -23,6 +23,12 @@ class TapConstrafor(Tap):
             description="Constrafor API key (sent as Authorization: Api-Key …)",
         ),
         th.Property(
+            "is_sandbox",
+            th.BooleanType,
+            description="Use Constrafor sandbox API",
+            default=False,
+        ),
+        th.Property(
             "start_date",
             th.DateTimeType,
             description="Earliest record date for incremental sync",
