@@ -16,7 +16,7 @@ SANDBOX_URL = "https://api-sandbox.constrafor.com"
 INCREMENTAL_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 
 
-def config_is_sandbox(config: dict) -> bool:
+def config_is_sandbox(config) -> bool:
     """Coerce is_sandbox from bool or hotglue metadata string substitution."""
     value = config.get("is_sandbox", False)
     if isinstance(value, bool):
