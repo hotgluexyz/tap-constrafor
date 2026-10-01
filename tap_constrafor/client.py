@@ -16,13 +16,23 @@ SANDBOX_URL = "https://api-sandbox.constrafor.com"
 INCREMENTAL_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 
 
+def config_is_sandbox(config) -> bool:
+    """Coerce is_sandbox from bool or hotglue metadata string substitution."""
+    value = config.get("is_sandbox", False)
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() == "true"
+    return False
+
+
 class ConstraforStream(RESTStream):
     """Base Constrafor API stream."""
 
     @override
     @property
     def url_base(self) -> str:
-        api_root = SANDBOX_URL if self.config.get("is_sandbox") else PROD_URL
+        api_root = SANDBOX_URL if config_is_sandbox(self.config) else PROD_URL
         return f"{api_root}/public_api/v1"
 
     @override
