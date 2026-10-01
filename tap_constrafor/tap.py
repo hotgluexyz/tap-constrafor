@@ -24,7 +24,7 @@ class TapConstrafor(Tap):
         ),
         th.Property(
             "is_sandbox",
-            th.BooleanType,
+            th.CustomType({"type": ["boolean", "string"]}),
             description="Use Constrafor sandbox API",
             default=False,
         ),
