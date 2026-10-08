@@ -36,6 +36,7 @@ DETAIL_PROJECT = th.ObjectType(
     th.Property("id", th.IntegerType),
     th.Property("name", th.StringType),
     th.Property("number", th.StringType),
+    th.Property("insurance_program", th.StringType),
     th.Property("client_id", th.IntegerType),
     th.Property("created_at", th.DateTimeType),
     th.Property("updated_at", th.DateTimeType),
@@ -53,7 +54,7 @@ POLICY_SUBCONTRACTOR = th.ObjectType(
 )
 
 DETAIL_SUBCONTRACTOR = th.ObjectType(
-    th.Property("id", th.IntegerType),
+    th.Property("id", th.StringType),
     th.Property("name", th.StringType),
     th.Property("description", th.StringType),
     th.Property("address", ADDRESS),
@@ -84,6 +85,7 @@ POLICY_INSURANCE_REQUEST = th.ObjectType(
 DETAIL_INSURANCE_REQUEST = th.ObjectType(
     th.Property("id", th.IntegerType),
     th.Property("start_date", th.DateType),
+    th.Property("contract_number", th.StringType),
     th.Property("project", DETAIL_PROJECT),
     th.Property("subcontractor", DETAIL_SUBCONTRACTOR),
     th.Property("documents", th.ArrayType(DOCUMENT)),
@@ -149,6 +151,7 @@ class InsurancePolicyDetailStream(ConstraforStream):
         th.Property("insurance_requests", th.ArrayType(DETAIL_INSURANCE_REQUEST)),
         th.Property("type", th.StringType),
         th.Property("status", th.StringType),
+        th.Property("blanket", th.BooleanType),
         th.Property("insurance_carrier_name", th.StringType),
         th.Property("policy_number", th.StringType),
         th.Property("submitted_on", th.DateType),
