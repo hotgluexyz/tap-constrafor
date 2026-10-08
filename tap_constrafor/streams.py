@@ -54,7 +54,7 @@ POLICY_SUBCONTRACTOR = th.ObjectType(
 )
 
 DETAIL_SUBCONTRACTOR = th.ObjectType(
-    th.Property("id", th.StringType),
+    th.Property("id", th.IntegerType),
     th.Property("name", th.StringType),
     th.Property("description", th.StringType),
     th.Property("address", ADDRESS),
