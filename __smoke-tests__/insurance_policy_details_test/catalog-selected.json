@@ -354,6 +354,12 @@
                     "null"
                   ]
                 },
+                "contract_number": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
                 "project": {
                   "properties": {
                     "id": {
@@ -369,6 +375,12 @@
                       ]
                     },
                     "number": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "insurance_program": {
                       "type": [
                         "string",
                         "null"
@@ -653,6 +665,12 @@
               "null"
             ]
           },
+          "blanket": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
           "insurance_carrier_name": {
             "type": [
               "string",
@@ -737,8 +755,7 @@
           },
           "additional_insureds": {
             "type": [
-              "array",
-              "object",
+              "boolean",
               "null"
             ]
           },
@@ -787,6 +804,16 @@
           "breadcrumb": [
             "properties",
             "status"
+          ],
+          "metadata": {
+            "inclusion": "available",
+            "selected": true
+          }
+        },
+        {
+          "breadcrumb": [
+            "properties",
+            "blanket"
           ],
           "metadata": {
             "inclusion": "available",
