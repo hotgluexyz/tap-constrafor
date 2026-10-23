@@ -7,7 +7,11 @@ from typing import List
 from hotglue_singer_sdk import Tap, Stream
 from hotglue_singer_sdk import typing as th
 
-from tap_constrafor.streams import InsurancePolicyDetailStream, InsurancePolicyStream
+from tap_constrafor.streams import (
+    ExecutedContractsStream,
+    InsurancePolicyDetailStream,
+    InsurancePolicyStream,
+)
 
 
 class TapConstrafor(Tap):
@@ -37,6 +41,7 @@ class TapConstrafor(Tap):
 
     def discover_streams(self) -> List[Stream]:
         return [
+            ExecutedContractsStream(self),
             InsurancePolicyStream(self),
             InsurancePolicyDetailStream(self),
         ]
