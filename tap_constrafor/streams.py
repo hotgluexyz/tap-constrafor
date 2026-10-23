@@ -144,6 +144,7 @@ class ExecutedContractsStream(ConstraforStream):
     ) -> dict[str, Any]:
         params: dict[str, Any] = {}
         # updated_after is inclusive (>=); +1µs so bookmark reuse does not re-fetch
+        # 1µs because "replication_key_value": "2026-10-13T15:15:01.036186Z"
         starting = self.get_starting_time(context) + timedelta(microseconds=1)
         params["updated_after"] = starting.strftime(INCREMENTAL_DATETIME_FORMAT)
         params["status"] = "executed"
@@ -180,6 +181,7 @@ class InsurancePolicyStream(ConstraforStream):
     ) -> dict[str, Any]:
         params: dict[str, Any] = {}
         # updated_after is inclusive (>=); +1µs so bookmark reuse does not re-fetch
+        # 1µs because "replication_key_value": "2026-10-13T15:15:01.036186Z"
         starting = self.get_starting_time(context) + timedelta(microseconds=1)
         params["updated_after"] = starting.strftime(INCREMENTAL_DATETIME_FORMAT)
         return params
