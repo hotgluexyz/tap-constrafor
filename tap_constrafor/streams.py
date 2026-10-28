@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import Any
 
 from hotglue_singer_sdk import typing as th
@@ -100,6 +101,56 @@ LIMITS = th.ObjectType(
 )
 
 
+class ExecutedContractsStream(ConstraforStream):
+    """Constrafor executed contracts (GET /v1/contract?status=executed)."""
+
+    name = "executed_contracts"
+    path = "/contract"
+    primary_keys = ["id"]
+    replication_key = "updated_at"
+    records_jsonpath = "$[*]"
+    schema = th.PropertiesList(
+        th.Property("id", th.IntegerType),
+        th.Property("name", th.StringType),
+        th.Property("number", th.StringType),
+        th.Property("amount", th.NumberType),
+        th.Property("status", th.StringType),
+        th.Property("project", th.ObjectType(
+            th.Property("id", th.IntegerType), #API probe returns project.id as int
+            th.Property("name", th.StringType),
+            th.Property("number", th.StringType),
+            th.Property("client_id", th.StringType),
+            th.Property("insurance_program", th.StringType),
+            th.Property("created_at", th.DateTimeType),
+            th.Property("updated_at", th.DateTimeType),
+        )),
+        th.Property("counterpart_type", th.StringType),
+        th.Property("counterpart", th.ObjectType(
+            th.Property("id", th.StringType), #API probe returns counterpart.id as string
+            th.Property("name", th.StringType),
+            th.Property("created_at", th.DateTimeType),
+            th.Property("updated_at", th.DateTimeType),
+        )),
+        th.Property("category", th.StringType),
+        th.Property("created_at", th.DateTimeType),
+        th.Property("updated_at", th.DateTimeType),
+    ).to_dict()
+
+    @override
+    def get_url_params(
+        self,
+        context: dict | None,
+        next_page_token: Any | None,
+    ) -> dict[str, Any]:
+        params: dict[str, Any] = {}
+        # updated_after is inclusive (>=); +1µs so bookmark reuse does not re-fetch
+        # 1µs because "replication_key_value": "2026-10-13T15:15:01.036186Z"
+        starting = self.get_starting_time(context) + timedelta(microseconds=1)
+        params["updated_after"] = starting.strftime(INCREMENTAL_DATETIME_FORMAT)
+        params["status"] = "executed"
+        return params
+
+
 class InsurancePolicyStream(ConstraforStream):
     """Constrafor insurance policies."""
 
@@ -129,7 +180,9 @@ class InsurancePolicyStream(ConstraforStream):
         next_page_token: Any | None,
     ) -> dict[str, Any]:
         params: dict[str, Any] = {}
-        starting = self.get_starting_time(context)
+        # updated_after is inclusive (>=); +1µs so bookmark reuse does not re-fetch
+        # 1µs because "replication_key_value": "2026-10-13T15:15:01.036186Z"
+        starting = self.get_starting_time(context) + timedelta(microseconds=1)
         params["updated_after"] = starting.strftime(INCREMENTAL_DATETIME_FORMAT)
         return params
 
