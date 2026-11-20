@@ -48,14 +48,14 @@ DETAIL_PROJECT = th.ObjectType(
 )
 
 POLICY_SUBCONTRACTOR = th.ObjectType(
-    th.Property("id", th.IntegerType),
+    th.Property("id", th.StringType),
     th.Property("name", th.StringType),
     th.Property("created_at", th.DateTimeType),
     th.Property("updated_at", th.DateTimeType),
 )
 
 DETAIL_SUBCONTRACTOR = th.ObjectType(
-    th.Property("id", th.IntegerType),
+    th.Property("id", th.StringType),
     th.Property("name", th.StringType),
     th.Property("description", th.StringType),
     th.Property("address", ADDRESS),
